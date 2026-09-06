@@ -1,0 +1,315 @@
+-- ============================================
+-- ESP PARA BLOCK SPIN (MÓVIL/DELTA)
+-- Panel táctil con botones grandes
+-- Sin teclas, todo desde la pantalla
+-- ============================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ===== CREAR PANEL (MÁS GRANDE PARA MÓVIL) =====
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 260, 0, 400) -- Más grande para dedos
+Frame.Position = UDim2.new(0.5, -130, 0.5, -200) -- Centrado
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+Frame.BackgroundTransparency = 0.1
+Frame.BorderSizePixel = 3
+Frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+-- Título
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "🎯 ESP BLOCK SPIN"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+Title.Parent = Frame
+
+-- Función para crear botones táctiles (más grandes)
+local function createButton(parent, text, yPos, default)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.85, 0, 0, 45) -- Más alto para dedos
+    btn.Position = UDim2.new(0.075, 0, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = text .. (default and " ✅" or " ❌")
+    btn.Font = Enum.Font.Gotham
+    btn.TextScaled = true
+    btn.Parent = parent
+    btn.State = default
+    return btn
+end
+
+-- Botones (más separados)
+local boxToggle = createButton(Frame, "📦 Caja", 50, true)
+local nameToggle = createButton(Frame, "🏷️ Nombre", 105, true)
+local healthToggle = createButton(Frame, "❤️ Vida", 160, true)
+local dropToggle = createButton(Frame, "📀 Items", 215, true)
+
+-- Selector de color
+local ColorLabel = Instance.new("TextLabel")
+ColorLabel.Size = UDim2.new(0.85, 0, 0, 30)
+ColorLabel.Position = UDim2.new(0.075, 0, 0, 270)
+ColorLabel.BackgroundTransparency = 1
+ColorLabel.Text = "🎨 Color: Verde"
+ColorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+ColorLabel.TextScaled = true
+ColorLabel.Font = Enum.Font.Gotham
+ColorLabel.Parent = Frame
+
+local colorIndex = 1
+local colors = {
+    {Name = "Rojo", Color = Color3.fromRGB(255, 0, 0)},
+    {Name = "Azul", Color = Color3.fromRGB(0, 150, 255)},
+    {Name = "Verde", Color = Color3.fromRGB(0, 255, 0)},
+    {Name = "Morado", Color = Color3.fromRGB(170, 0, 255)}
+}
+
+local ColorButton = Instance.new("TextButton")
+ColorButton.Size = UDim2.new(0.85, 0, 0, 45)
+ColorButton.Position = UDim2.new(0.075, 0, 0, 310)
+ColorButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+ColorButton.Text = "🔄 Cambiar color"
+ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ColorButton.TextScaled = true
+ColorButton.Font = Enum.Font.Gotham
+ColorButton.Parent = Frame
+
+-- BOTÓN PARA VER INVENTARIO (en lugar de tecla I)
+local InvButton = Instance.new("TextButton")
+InvButton.Size = UDim2.new(0.85, 0, 0, 45)
+InvButton.Position = UDim2.new(0.075, 0, 0, 365)
+InvButton.BackgroundColor3 = Color3.fromRGB(100, 80, 150)
+InvButton.Text = "🎒 Ver inventarios"
+InvButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+InvButton.TextScaled = true
+InvButton.Font = Enum.Font.Gotham
+InvButton.Parent = Frame
+
+-- Funciones de los botones
+local function updateToggle(btn)
+    btn.State = not btn.State
+    btn.Text = btn.Text:gsub(" ✅", ""):gsub(" ❌", "") .. (btn.State and " ✅" or " ❌")
+end
+
+boxToggle.MouseButton1Click:Connect(function() updateToggle(boxToggle) end)
+nameToggle.MouseButton1Click:Connect(function() updateToggle(nameToggle) end)
+healthToggle.MouseButton1Click:Connect(function() updateToggle(healthToggle) end)
+dropToggle.MouseButton1Click:Connect(function() updateToggle(dropToggle) end)
+
+ColorButton.MouseButton1Click:Connect(function()
+    colorIndex = colorIndex % #colors + 1
+    ColorLabel.Text = "🎨 Color: " .. colors[colorIndex].Name
+end)
+
+-- Botón de inventario (táctil)
+InvButton.MouseButton1Click:Connect(function()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local inv = {}
+            local backpack = player:FindFirstChild("Backpack")
+            if backpack then
+                for _, item in pairs(backpack:GetChildren()) do
+                    if item:IsA("Tool") then
+                        table.insert(inv, item.Name)
+                    end
+                end
+            end
+            if #inv > 0 then
+                print("🎒 " .. player.Name .. ": " .. table.concat(inv, ", "))
+            else
+                print("🎒 " .. player.Name .. ": vacío")
+            end
+        end
+    end
+end)
+
+-- ===== ESP =====
+local espObjects = {}
+
+local function newDrawing(type)
+    if not Drawing then return nil end
+    return Drawing.new(type)
+end
+
+local function createPlayerESP(player)
+    if player == LocalPlayer then return end
+    if espObjects[player] then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local esp = {
+        Box = newDrawing("Square"),
+        Name = newDrawing("Text"),
+        HealthBar = newDrawing("Line"),
+        HealthBarBg = newDrawing("Line"),
+    }
+    
+    if esp.Box then
+        esp.Box.Thickness = 2
+        esp.Box.Transparency = 0.3
+        esp.Box.Filled = false
+    end
+    if esp.Name then
+        esp.Name.Size = 16
+        esp.Name.Center = true
+        esp.Name.Outline = true
+        esp.Name.OutlineColor = Color3.new(0, 0, 0)
+    end
+    espObjects[player] = esp
+end
+
+local function removePlayerESP(player)
+    local esp = espObjects[player]
+    if esp then
+        for _, obj in pairs(esp) do
+            if obj and obj.Remove then obj:Remove() end
+        end
+        espObjects[player] = nil
+    end
+end
+
+local function updatePlayerESP(player)
+    local esp = espObjects[player]
+    if not esp then return end
+    
+    local character = player.Character
+    if not character then removePlayerESP(player) return end
+    
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
+    
+    local vector, onScreen = Camera:WorldToScreenPoint(root.Position)
+    local espColor = colors[colorIndex].Color
+    
+    -- Caja
+    if esp.Box then
+        esp.Box.Visible = onScreen and boxToggle.State
+        if esp.Box.Visible then
+            local size = 4
+            esp.Box.Position = Vector2.new(vector.X - size, vector.Y - 6)
+            esp.Box.Size = Vector2.new(size * 2, 12)
+            esp.Box.Color = espColor
+        end
+    end
+    
+    -- Nombre
+    if esp.Name then
+        esp.Name.Visible = onScreen and nameToggle.State
+        if esp.Name.Visible then
+            esp.Name.Position = Vector2.new(vector.X, vector.Y - 35)
+            esp.Name.Text = player.Name
+            esp.Name.Color = espColor
+        end
+    end
+    
+    -- Vida
+    if esp.HealthBar and esp.HealthBarBg then
+        local healthVis = onScreen and healthToggle.State
+        local hp = hum.Health / hum.MaxHealth
+        local barW = 35
+        local barH = 4
+        
+        esp.HealthBarBg.Visible = healthVis
+        esp.HealthBar.Visible = healthVis
+        
+        if healthVis then
+            esp.HealthBarBg.From = Vector2.new(vector.X - barW/2, vector.Y + 8)
+            esp.HealthBarBg.To = Vector2.new(vector.X + barW/2, vector.Y + 8)
+            esp.HealthBarBg.Color = Color3.new(0.2, 0.2, 0.2)
+            esp.HealthBarBg.Thickness = barH
+            
+            esp.HealthBar.From = Vector2.new(vector.X - barW/2, vector.Y + 8)
+            esp.HealthBar.To = Vector2.new(vector.X - barW/2 + (barW * hp), vector.Y + 8)
+            esp.HealthBar.Color = Color3.new(1 - hp, hp, 0)
+            esp.HealthBar.Thickness = barH
+        end
+    end
+end
+
+-- ===== ITEMS DROPEADOS (MEJORADO PARA BLOCK SPIN) =====
+local droppedItems = {}
+
+local function updateDroppedItems()
+    if not dropToggle.State then
+        for _, esp in pairs(droppedItems) do
+            if esp and esp.Remove then esp:Remove() end
+        end
+        droppedItems = {}
+        return
+    end
+    
+    -- Busca en toda la obra
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Parent and not obj.Parent:IsA("Character") then
+            local name = obj.Name:lower()
+            -- Filtros ampliados para Block Spin
+            if name:find("item") or name:find("drop") or name:find("pickup") or 
+               name:find("weapon") or name:find("gun") or name:find("coin") or
+               name:find("crate") or name:find("chest") or name:find("box") then
+                if not droppedItems[obj] then
+                    local esp = newDrawing("Text")
+                    if esp then
+                        esp.Size = 14
+                        esp.Color = colors[colorIndex].Color
+                        esp.Center = true
+                        esp.Outline = true
+                        esp.OutlineColor = Color3.new(0, 0, 0)
+                        esp.Text = "📦 " .. obj.Name
+                        droppedItems[obj] = esp
+                    end
+                end
+            end
+        end
+    end
+    
+    for obj, esp in pairs(droppedItems) do
+        if not obj or not obj.Parent then
+            if esp and esp.Remove then esp:Remove() end
+            droppedItems[obj] = nil
+        else
+            local vector, onScreen = Camera:WorldToScreenPoint(obj.Position)
+            if onScreen then
+                esp.Visible = true
+                esp.Position = Vector2.new(vector.X, vector.Y - 25)
+                esp.Color = colors[colorIndex].Color
+            else
+                esp.Visible = false
+            end
+        end
+    end
+end
+
+-- ===== INICIALIZACIÓN =====
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function() createPlayerESP(player) end)
+        createPlayerESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() createPlayerESP(p) end)
+end)
+
+Players.PlayerRemoving:Connect(removePlayerESP)
+
+RunService.RenderStepped:Connect(function()
+    for player in pairs(espObjects) do
+        updatePlayerESP(player)
+    end
+    updateDroppedItems()
+end)
+
+print("✅ ESP PARA BLOCK SPIN CARGADO | Panel táctil para móvil")
